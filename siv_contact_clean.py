@@ -177,6 +177,17 @@ def contact_clean():
     final_list['Phone'] = final_list['Phone'].str.split(';', n=1).str.get(0)
     final_list['Phone'] = final_list['Phone'].replace(np.nan, '', regex=True)
 
+    def strip_punc_at_end(word):
+        if not word:
+            return word  # nothing to strip
+        start = 0
+        for end, c in enumerate(word[::-1]):
+            if c.isalpha():
+                break
+        return word[start:len(word) - end]
+
+    final_list['Email [DW]'] = final_list['Email [DW]'].map(strip_punc_at_end)
+
     final_list.to_excel(
         ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/non_deduped_contacts/' + date_string + '_non_deduped_contacts.xlsx',
         index=False

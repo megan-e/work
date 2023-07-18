@@ -1,13 +1,18 @@
 import pandas as pd
 from ps_module import ps_module as ps
 import numpy as np
-
+import glob
+import datetime
 
 # df = pd.read_csv('/Users/megan/Downloads/Missing_at_least_ONE_1689016080497.csv')
+date = datetime.datetime.now()
+date_string = str.lower(date.strftime('%d%b%Y'))
+file_names = glob.glob(
+    ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/fill_if_empty/' + date_string + '*.csv')
 
 
-def fill_if_empty_roles(path=None, output_file_name='default_name'):
-    fill_if_empty = pd.read_csv(path)
+def fill_if_empty_roles():
+    fill_if_empty = pd.read_csv(file_names[0])
     fill_if_empty = fill_if_empty.replace(r'^\s*$', np.nan, regex=True)
     fill_if_empty = fill_if_empty[fill_if_empty['Name [DW]'].notnull()]
     fill_if_empty = fill_if_empty[fill_if_empty['Role [DW]'].notnull()]
@@ -46,12 +51,15 @@ def fill_if_empty_roles(path=None, output_file_name='default_name'):
     cra = cra[cra['SF CRA ID'].isnull()]
 
     dropped_dupes.to_excel(
-        ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/fill_if_empty/' + output_file_name + '.xlsx')
+        ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/fill_if_empty/' + date_string + '_fill_if_empty_clean.xlsx')
     with pd.ExcelWriter(
-            ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/fill_if_empty/' + output_file_name + '.xlsx') as writer:
+            ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/fill_if_empty/' + date_string + '_fill_if_empty_clean.xlsx') as writer:
         dropped_dupes.to_excel(writer, sheet_name="Fill if Empty")
         principal_investigator.to_excel(writer, sheet_name="Principal Investigator")
         primary_contact.to_excel(writer, sheet_name="Primary Contact")
         cra.to_excel(writer, sheet_name="CRA")
 
     return dropped_dupes
+
+
+fill_if_empty_roles()

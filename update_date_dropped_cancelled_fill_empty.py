@@ -7,40 +7,34 @@ import numpy as np
 # looking for files based on today's date
 date = datetime.datetime.now()
 date_string = str.lower(date.strftime('%d%b%Y'))
-# file_path = ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/date_update_drop_cancel/' + date_string + '*.csv'
-file_path = ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/am_tasks/' + date_string + '*.csv'
-
-file_names = glob.glob(file_path)
+fill_file_name = glob.glob(
+    ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/fill_if_empty/' + date_string + '_Missing' + '*.csv')
+update_date_name = glob.glob(
+    ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/date_update_drop_cancel/' + date_string + '_Protocol' + '*.csv')
+drop_cancel_name = glob.glob(
+    ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/date_update_drop_cancel/' + date_string + '_Sites' + '*.csv')
 # update date
-if any(map(lambda name: 'Protocol' in name, file_names)):
-    protocol_path = next(x for x in file_names if 'Protocol_with_Trial' in x)
+if any(map(lambda name: 'Protocol' in name, update_date_name)):
+    protocol_path = next(x for x in update_date_name if 'Protocol_with_Trial' in x)
     update_date = pd.read_csv(protocol_path)
     update_date = update_date[update_date['Trial SFID [SF]'].notnull()]
     update_date['date updated'] = date_string
     # update_date.to_excel(
     #     ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/date_update_drop_cancel/' + date_string + '_update_date_clean.xlsx')
     update_date.to_excel(
-        ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/am_tasks/' + date_string + '_update_date_clean.xlsx')
+        ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/date_update_drop_cancel/' + date_string + '_update_date_clean.xlsx')
 
 # dropped/cancelled sites
-if any(map(lambda name: 'Sites' in name, file_names)):
-    dropped_file_path = next(x for x in file_names if 'Sites_on_Site_Lists' in x)
+if any(map(lambda name: 'Sites' in name, drop_cancel_name)):
+    dropped_file_path = next(x for x in drop_cancel_name if 'Sites_on_Site_Lists' in x)
     dropped_sites = pd.read_csv(dropped_file_path)
-    # dropped_sites.to_excel(
-    #     ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/date_update_drop_cancel/' + date_string + '_dropped_sites_clean.xlsx'
-    # )
     dropped_sites.to_excel(
-        ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/am_tasks/' + date_string + '_dropped_sites_clean.xlsx'
+        ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/date_update_drop_cancel/' + date_string + '_dropped_sites_clean.xlsx'
     )
 
-# fill if empty
-# file_names_fill = glob.glob(
-#     ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/fill_if_empty/' + date_string + '*.csv')
-
-
 # def fill_if_empty_roles():
-if any(map(lambda name: 'Missing' in name, file_names)):
-    fill_if_empty_path = next(x for x in file_names if 'Missing' in x)
+if any(map(lambda name: 'Missing' in name, fill_file_name)):
+    fill_if_empty_path = next(x for x in fill_file_name if 'Missing' in x)
     fill_if_empty = pd.read_csv(fill_if_empty_path)
     fill_if_empty = fill_if_empty.replace(r'^\s*$', np.nan, regex=True)
     fill_if_empty = fill_if_empty[fill_if_empty['Name [DW]'].notnull()]
@@ -86,9 +80,9 @@ if any(map(lambda name: 'Missing' in name, file_names)):
     # with pd.ExcelWriter(
     #         ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/fill_if_empty/' + date_string + '_fill_if_empty_clean.xlsx') as writer:
     dropped_dupes.to_excel(
-        ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/am_tasks/' + date_string + '_fill_if_empty_clean.xlsx')
+        ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/fill_if_empty/' + date_string + '_fill_if_empty_clean.xlsx')
     with pd.ExcelWriter(
-            ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/am_tasks/' + date_string + '_fill_if_empty_clean.xlsx') as writer:
+            ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/fill_if_empty/' + date_string + '_fill_if_empty_clean.xlsx') as writer:
         dropped_dupes.to_excel(writer, sheet_name="Fill if Empty")
         principal_investigator.to_excel(writer, sheet_name="Principal Investigator")
         primary_contact.to_excel(writer, sheet_name="Primary Contact")

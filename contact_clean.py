@@ -26,22 +26,21 @@ filter_roles = ['Principal Investigator', 'Study Coordinator',
                 'Lead Study Coordinator',
                 'Study Coordinator - Backup', 'Sub - Investigator', 'Sub-Investigator', 'Lead Site Monitor',
                 'Study Coordinator(Back - up)',
-                'Lead Coordinator', 'Monitor', 'Primary Contact', 'Site Staff', 'SC'
+                'Lead Coordinator', 'Monitor', 'Primary Contact', 'Site Staff', 'SC', 'Study Coordinator-back up'
                 ]
 contact_roles_filtered = contact_list[contact_list['Role [DW]'].isin(filter_roles)]
 
-# Confirm which roles are getting excluded
+# Confirm which roles are getting excluded - add roles for filter_roles if needed
 excluded_roles = contact_list[~contact_list['Role [DW]'].isin(filter_roles)]
 print(excluded_roles['Role [DW]'].unique())
 
-# Delete emails that do not contain @ symbol
-not_email = contact_roles_filtered[~contact_roles_filtered['Email [DW]'].str.contains("@", na=False)]
-# All true emails
-deduped_list = contact_roles_filtered[contact_roles_filtered['Email [DW]'].str.contains("@", na=False)]
-
 # Remove duplicate emails
-deduped_list = deduped_list.drop_duplicates(subset=['Email [DW]'])
-
+deduped_list = contact_roles_filtered.drop_duplicates(subset=['Email [DW]'])
+# Delete emails that do not contain @ symbol
+not_email = deduped_list[~deduped_list['Email [DW]'].str.contains("@", na=False)]
+print(not_email)
+# All true emails
+deduped_list = deduped_list[deduped_list['Email [DW]'].str.contains("@", na=False)]
 # Remove missing emails
 deduped_list = deduped_list[~deduped_list['Email [DW]'].isna()]
 
@@ -49,7 +48,7 @@ deduped_list = deduped_list[~deduped_list['Email [DW]'].isna()]
 deduped_list = deduped_list.replace(dict.fromkeys(['\xa0', r'\\n', r'\\t', '\u202f', r'\\'], '/'), regex=True)
 
 
-# Remove punctuation at the end
+# Remove any punctuation at the end
 def strip_punc_at_end(email):
     if not email:
         return email  # nothing to strip
@@ -61,18 +60,20 @@ def strip_punc_at_end(email):
 
 
 deduped_list['Email [DW]'] = deduped_list['Email [DW]'].map(strip_punc_at_end)
-deduped_list['Email [DW]'] = deduped_list['Email [DW]'].str.strip("/,.")
+# Removing punctuation from end or beginning
+deduped_list['Email [DW]'] = deduped_list['Email [DW]'].str.strip("/,. '>")
 
-##Begin separating out emails that need specific cleaning
-
-# Separating out multiple emails in one cell
+## Begin separating out emails that need specific cleaning
+# Isolate multiple emails in one cell
 multiple_emails = deduped_list.loc[(deduped_list['Email [DW]'].str.count("@")) >= 2]
+print(multiple_emails)
+# Isolate angle brackets on email
 angle_bracket = deduped_list.loc[(deduped_list['Email [DW]'].str.contains("<"))]
-
+print(angle_bracket)
 # Delete values with multiple emails and angle brackets
 deduped_list = pd.concat([deduped_list, multiple_emails, angle_bracket]).drop_duplicates(keep=False)
 
-# Clean
+## Clean
 # Remove and split based on slashes separating multiple emails
 multiple_emails['Email [DW]'] = multiple_emails['Email [DW]'].str.split(';| |/', n=1).str.get(0)
 
@@ -84,11 +85,6 @@ angle_bracket['Email [DW]'] = deduped_list['Email [DW]'].str.split('<', n=1).str
 # Concat cleaned data to original deduped_list
 data = [deduped_list, multiple_emails, angle_bracket]
 deduped_list = pd.concat(data)
-
-# Remove trailing and leading punctuation and spaces
-# Did not remove spaces within email - there are sometimes spaces in place of dashes
-deduped_list['Email [DW]'] = deduped_list['Email [DW]'].str.strip(",. '>")
-# deduped_list['Email [DW]'] = deduped_list['Email [DW]'].str.split('<', n=1).str.get(1)
 
 ## Write new excel sheet for check_sheet
 # Finding punctuation within email
@@ -110,10 +106,12 @@ char_remove = ['Dr.', 'Dr. ', ', MD', 'M.D', 'M.D.', ', M.D.']
 for char in char_remove:
     deduped_list['Name [DW]'] = deduped_list['Name [DW]'].str.replace(char, '')
 
-# 2 names sometimes separated with a "/"
+# 2 names sometimes separated with a "/", therefore stripping only trailing punctuation
 deduped_list['Name [DW]'] = deduped_list['Name [DW]'].str.strip("/,., ")
 
+# Multiple names may be separated by a comma, you will need to manually check and confirm the correct name
 comma = deduped_list.loc[deduped_list['Name [DW]'].str.contains(',', na=False)]
+print(comma['Name [DW]'])
 deduped_list = pd.concat([deduped_list, comma]).drop_duplicates(keep=False)
 
 comma['Name [DW]'] = comma['Name [DW]'].str.replace(', ', ',', regex=True)
@@ -121,6 +119,7 @@ comma['Last Name [DW] '] = comma['Name [DW]'].str.split(',', n=1).str.get(0)
 comma['First Name [DW]'] = comma['Name [DW]'].str.split(',', n=1).str.get(1)
 comma['First Name [DW]'] = comma['First Name [DW]'].str.strip("/,., ")
 
+# Multiple names separated by "/"
 deduped_list['Name [DW]'] = deduped_list['Name [DW]'].str.split('/', n=1).str.get(0)
 deduped_list['First Name [DW]'] = deduped_list['Name [DW]'].str.split(' ', n=1).str.get(0)
 deduped_list['Last Name [DW] '] = deduped_list['Name [DW]'].str.split(' ', n=1).str.get(-1)

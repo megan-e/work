@@ -41,8 +41,6 @@ deduped_list = contact_roles_filtered[contact_roles_filtered['Email [DW]'].str.c
 
 # Remove duplicate emails
 deduped_list = deduped_list.drop_duplicates(subset=['Email [DW]'])
-# Does the no name have an email in the original list? If it does it will appear here
-no_name_in_original_list = deduped_list[deduped_list['Email [DW]'].isin(no_name)]
 
 # Remove missing emails
 deduped_list = deduped_list[~deduped_list['Email [DW]'].isna()]

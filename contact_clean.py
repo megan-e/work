@@ -63,6 +63,8 @@ deduped_list['Email [DW]'] = deduped_list['Email [DW]'].map(strip_punc_at_end)
 # Removing punctuation from end or beginning
 deduped_list['Email [DW]'] = deduped_list['Email [DW]'].str.strip("/,. '>")
 
+hetnar = deduped_list[deduped_list['Email [DW]'].str.contains("hetnar", na=False)]
+
 ## Begin separating out emails that need specific cleaning
 # Isolate multiple emails in one cell
 multiple_emails = deduped_list.loc[(deduped_list['Email [DW]'].str.count("@")) >= 2]
@@ -75,7 +77,7 @@ deduped_list = pd.concat([deduped_list, multiple_emails, angle_bracket]).drop_du
 
 ## Clean
 # Remove and split based on slashes separating multiple emails
-multiple_emails['Email [DW]'] = multiple_emails['Email [DW]'].str.split(';| |/', n=1).str.get(0)
+multiple_emails['Email [DW]'] = multiple_emails['Email [DW]'].str.split(';| |/|,', n=1).str.get(0)
 
 # Replace misspellings
 deduped_list['Email [DW]'] = deduped_list['Email [DW]'].replace("novarrtis", "novartis", regex=True)
@@ -85,20 +87,6 @@ angle_bracket['Email [DW]'] = deduped_list['Email [DW]'].str.split('<', n=1).str
 # Concat cleaned data to original deduped_list
 data = [deduped_list, multiple_emails, angle_bracket]
 deduped_list = pd.concat(data)
-
-## Write new excel sheet for check_sheet
-# Finding punctuation within email
-contains_punctuation = deduped_list[deduped_list['Email [DW]'].str.contains(r",|'", regex=True, na=False)]
-# Remove contacts without names
-no_name = deduped_list.loc[deduped_list['Name [DW]'].isna()]
-# Write no_name into check_sheet
-check_sheet = [contains_punctuation, no_name]
-check_sheet = pd.concat(check_sheet)
-
-# Values are added to the bottom of the contact list
-deduped_list = pd.concat([deduped_list, check_sheet]).drop_duplicates(keep=False)
-# Remove nan values
-deduped_list = deduped_list[~deduped_list['Email [DW]'].isna()]
 
 ##cleaning contact name
 # Separating contacts that have first and last name switched (contains a ,)
@@ -126,12 +114,27 @@ deduped_list['Last Name [DW] '] = deduped_list['Name [DW]'].str.split(' ', n=1).
 
 data = ([comma, deduped_list])
 final_list = pd.concat(data)
+
+## Write new excel sheet for check_sheet
+# Finding odd characters within email
+contains_error = final_list[final_list['Email [DW]'].str.contains(r",|'| |;|/", regex=True, na=False)]
+# Remove contacts without names
+no_name = final_list.loc[final_list['Name [DW]'].isna()]
+check_sheet = [contains_error, no_name]
+check_sheet = pd.concat(check_sheet)
+print(check_sheet)
+
+# Values are added to the bottom of the contact list
+final_list = pd.concat([final_list, check_sheet]).drop_duplicates(keep=False)
+# Remove nan values
+final_list = final_list[~final_list['Email [DW]'].isna()]
 final_list.reset_index(inplace=True)
 
 # reassigning site and sponsor contacts
 final_list['Role [DW]'] = final_list['Role [DW]'].str.lower()
 
 
+# Begin mapping roles and account IDs
 def site_contact(input_value):
     if 'sub' in input_value:
         return 'Sub-Investigator'

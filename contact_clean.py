@@ -43,7 +43,7 @@ print(not_email)
 deduped_list = deduped_list[deduped_list['Email [DW]'].str.contains("@", na=False)]
 # Remove missing emails
 deduped_list = deduped_list[~deduped_list['Email [DW]'].isna()]
-
+emails_before_clean = deduped_list
 # Replace backslash with forward slash
 deduped_list = deduped_list.replace(dict.fromkeys(['\xa0', r'\\n', r'\\t', '\u202f', r'\\'], '/'), regex=True)
 
@@ -82,11 +82,11 @@ multiple_emails['Email [DW]'] = multiple_emails['Email [DW]'].str.split(';| |/|,
 # Replace misspellings
 deduped_list['Email [DW]'] = deduped_list['Email [DW]'].replace("novarrtis", "novartis", regex=True)
 # Remove and split based on angle bracket
-angle_bracket['Email [DW]'] = deduped_list['Email [DW]'].str.split('<', n=1).str.get(1)
+angle_bracket['Email [DW]'] = angle_bracket['Email [DW]'].str.split('<', n=1).str.get(1)
 
 # Concat cleaned data to original deduped_list
 data = [deduped_list, multiple_emails, angle_bracket]
-deduped_list = pd.concat(data)
+deduped_list = pd.concat(data).drop_duplicates(keep=False)
 
 ##cleaning contact name
 # Separating contacts that have first and last name switched (contains a ,)
@@ -95,7 +95,7 @@ for char in char_remove:
     deduped_list['Name [DW]'] = deduped_list['Name [DW]'].str.replace(char, '')
 
 # 2 names sometimes separated with a "/", therefore stripping only trailing punctuation
-deduped_list['Name [DW]'] = deduped_list['Name [DW]'].str.strip("/,., ")
+deduped_list['Name [DW]'] = deduped_list['Name [DW]'].str.strip("/,., (")
 
 # Multiple names may be separated by a comma, you will need to manually check and confirm the correct name
 comma = deduped_list.loc[deduped_list['Name [DW]'].str.contains(',', na=False)]
@@ -113,15 +113,26 @@ deduped_list['First Name [DW]'] = deduped_list['Name [DW]'].str.split(' ', n=1).
 deduped_list['Last Name [DW] '] = deduped_list['Name [DW]'].str.split(' ', n=1).str.get(-1)
 
 data = ([comma, deduped_list])
-final_list = pd.concat(data)
+final_list = pd.concat(data).drop_duplicates(keep=False)
+# Removing any remaining characters trailing email. Purposely did not change characters WITHIN email
+final_list['Email [DW]'] = final_list['Email [DW]'].str.strip(",. '>()")
+final_list['Email [DW]'] = final_list['Email [DW]'].astype(str)
+# replace any empty columns with nan
+final_list = final_list.replace(r'^\s*$', np.nan, regex=True)
 
 ## Write new excel sheet for check_sheet
-# Finding odd characters within email
-contains_error = final_list[final_list['Email [DW]'].str.contains(r",|'| |;|/", regex=True, na=False)]
-# Remove contacts without names
-no_name = final_list.loc[final_list['Name [DW]'].isna()]
-check_sheet = [contains_error, no_name]
-check_sheet = pd.concat(check_sheet)
+# Emails still containing errors
+multiple_emails = final_list.loc[(final_list['Email [DW]'].str.count("@")) >= 2]
+contains_space = final_list.loc[(final_list['Email [DW]'].str.contains(' '))]
+contains_commas = final_list.loc[(final_list['Email [DW]'].str.contains(','))]
+# character_errors = final_list[final_list['Email [DW]'].str.contains(',| |;|`|')]
+
+# Where first and last name is empty
+nan_last_name = final_list[final_list['Last Name [DW] '].isna()]
+nan_first_name = final_list[final_list['First Name [DW]'].isna()]
+
+check_sheet = [nan_last_name, nan_first_name, multiple_emails, contains_space, contains_commas]
+check_sheet = pd.concat(check_sheet).drop_duplicates(keep=False)
 print(check_sheet)
 
 # Values are added to the bottom of the contact list
@@ -179,7 +190,6 @@ final_list['Lifecycle Stage'] = final_list['Role']
 final_list['Lifecycle Stage'] = final_list['Role'].map(lifestyle_stage)
 
 final_list.reset_index(inplace=True)
-final_list['Email [DW]'] = final_list['Email [DW]'].str.strip(",. '>")
 
 # Clean phone numbers
 final_list['Phone'] = final_list['Phone'].str.strip("'+/-")
@@ -241,7 +251,8 @@ secondary_match_list.to_excel(
     index=False)
 with pd.ExcelWriter(
         ps.gdrive_root() + '/My Drive/RAW SITE LISTS FOR PROCESSING/scripts/deduped_contacts/' + date_string + '_deduped_contacts.xlsx') as writer:
-    secondary_match_list.to_excel(writer, sheet_name="new contacts")
+    emails_before_clean.to_excel(writer, sheet_name="original_list")
+    secondary_match_list.to_excel(writer, sheet_name="new_contacts_list")
     site_contact.to_excel(writer, sheet_name="site")
     sponsor_contact.to_excel(writer, sheet_name="sponsor")
     check_sheet.to_excel(writer, sheet_name="check_these_contacts")
